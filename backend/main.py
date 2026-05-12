@@ -1,3 +1,16 @@
+from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from typing import List
+import datetime
+import logging
+import os
+import csv
+from io import StringIO
+from fastapi.responses import StreamingResponse
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+
 import models, schemas, database, mock_data
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -20,8 +33,12 @@ logger = logging.getLogger(__name__)
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 
-def get_api_key(api_key: str = Depends(api_key_header)):
-    if api_key != API_KEY:
+def get_db_api_key(db: Session):
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "api_key").first()
+    return setting.value if setting else API_KEY
+
+def get_api_key(api_key: str = Depends(api_key_header), db: Session = Depends(database.get_db)):
+    if api_key != get_db_api_key(db):
         raise HTTPException(status_code=401, detail="Invalid API Key")
     return api_key
 
@@ -139,6 +156,28 @@ def get_sensor_data(
         query = query.filter(models.SensorData.timestamp <= end)
         
     return query.order_by(models.SensorData.timestamp.asc()).limit(limit).all()
+
+@app.get("/api/settings", response_model=schemas.SettingsResponse)
+def get_settings(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    return {"api_key": get_db_api_key(db)}
+
+@app.post("/api/settings/password")
+def change_password(data: schemas.PasswordChange, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    if not verify_password(data.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect old password")
+    current_user.hashed_password = get_password_hash(data.new_password)
+    db.commit()
+    return {"status": "success"}
+
+@app.post("/api/settings/api-key")
+def update_api_key(data: schemas.ApiKeyUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "api_key").first()
+    if setting:
+        setting.value = data.api_key
+    else:
+        db.add(models.SystemSetting(key="api_key", value=data.api_key))
+    db.commit()
+    return {"status": "success"}
 
 @app.post("/api/sensor-data", response_model=schemas.SensorDataResponse)
 def create_sensor_data(

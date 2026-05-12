@@ -44,7 +44,18 @@ const translations = {
     loginBtn: "Sign In",
     logoutBtn: "Logout",
     loginError: "Invalid credentials",
-    unauthorized: "Session expired. Please re-login."
+    unauthorized: "Session expired. Please re-login.",
+    settings: "Settings",
+    dashboard: "Dashboard",
+    oldPassword: "Old Password",
+    newPassword: "New Password",
+    confirmPassword: "Confirm New Password",
+    updatePassword: "Update Password",
+    apiKey: "Hardware API Key",
+    updateApiKey: "Update API Key",
+    saveSuccess: "Settings saved successfully!",
+    saveError: "Failed to save settings.",
+    passMismatch: "New passwords do not match."
   },
   zh: {
     title: "智慧農業數據儀表板",
@@ -79,7 +90,18 @@ const translations = {
     loginBtn: "登入系統",
     logoutBtn: "登出系統",
     loginError: "帳號或密碼錯誤",
-    unauthorized: "連線已過期，請重新登入"
+    unauthorized: "連線已過期，請重新登入",
+    settings: "系統設定",
+    dashboard: "數據儀表板",
+    oldPassword: "舊密碼",
+    newPassword: "新密碼",
+    confirmPassword: "確認新密碼",
+    updatePassword: "更新密碼",
+    apiKey: "硬體 API 金鑰",
+    updateApiKey: "更新金鑰",
+    saveSuccess: "設定已成功儲存！",
+    saveError: "儲存失敗，請重試。",
+    passMismatch: "新密碼輸入不一致。"
   }
 };
 
@@ -105,6 +127,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [view, setView] = useState('dashboard'); // 'dashboard' or 'settings'
+  
+  // Settings state
+  const [settings, setSettings] = useState({ api_key: '' });
+  const [passForm, setPassForm] = useState({ old_password: '', new_password: '', confirm: '' });
 
   const axiosConfig = {
     headers: { Authorization: `Bearer ${token}` }
@@ -165,11 +192,53 @@ function App() {
     setToken(null);
     setData([]);
     setLatestData(null);
+    setView('dashboard');
+  };
+
+  const fetchSettings = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_BASE_URL}/settings`, axiosConfig);
+      setSettings(res.data);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (passForm.new_password !== passForm.confirm) {
+      alert(t('passMismatch'));
+      return;
+    }
+    try {
+      await axios.post(`${API_BASE_URL}/settings/password`, {
+        old_password: passForm.old_password,
+        new_password: passForm.new_password
+      }, axiosConfig);
+      alert(t('saveSuccess'));
+      setPassForm({ old_password: '', new_password: '', confirm: '' });
+    } catch (error) {
+      alert(t('saveError'));
+    }
+  };
+
+  const handleUpdateApiKey = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API_BASE_URL}/settings/api-key`, {
+        api_key: settings.api_key
+      }, axiosConfig);
+      alert(t('saveSuccess'));
+    } catch (error) {
+      alert(t('saveError'));
+    }
   };
 
   useEffect(() => {
     if (token) {
       fetchData();
+      fetchSettings();
       const interval = setInterval(fetchData, 60000);
       return () => clearInterval(interval);
     }
@@ -276,7 +345,25 @@ function App() {
   return (
     <div className="dashboard-container">
       <header>
-        <h1>{t('title')}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <h1 onClick={() => setView('dashboard')} style={{ cursor: 'pointer' }}>{t('title')}</h1>
+          <nav style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              className={`btn-lang ${view === 'dashboard' ? 'active' : ''}`} 
+              onClick={() => setView('dashboard')}
+              style={{ background: view === 'dashboard' ? 'rgba(59, 130, 246, 0.2)' : 'transparent', borderColor: view === 'dashboard' ? '#3b82f6' : 'rgba(255,255,255,0.2)' }}
+            >
+              {t('dashboard')}
+            </button>
+            <button 
+              className={`btn-lang ${view === 'settings' ? 'active' : ''}`} 
+              onClick={() => setView('settings')}
+              style={{ background: view === 'settings' ? 'rgba(59, 130, 246, 0.2)' : 'transparent', borderColor: view === 'settings' ? '#3b82f6' : 'rgba(255,255,255,0.2)' }}
+            >
+              {t('settings')}
+            </button>
+          </nav>
+        </div>
         <div className="controls">
           <button className="btn-lang" onClick={handleLogout} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }}>
              {t('logoutBtn')}
@@ -284,148 +371,181 @@ function App() {
           <button className="btn-lang" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
             <Globe size={16} /> {lang === 'en' ? '中文' : 'EN'}
           </button>
-          <div className="date-picker-group">
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('from')}</span>
-            <input 
-              type="datetime-local" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="date-picker-group">
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('to')}</span>
-            <input 
-              type="datetime-local" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-          <button className="btn-fetch" onClick={handleFetchClick}>{t('applyRange')}</button>
-          <button className="btn-fetch" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6' }}>
-            <Download size={16} /> {t('exportCsv')}
-          </button>
         </div>
       </header>
 
-      {loading && !latestData ? (
-        <div className="loading">{t('loading')}</div>
+      {view === 'settings' ? (
+        <section className="charts-container" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', display: 'grid', gap: '2rem', marginTop: '2rem' }}>
+          <div className="chart-card">
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>{t('updatePassword')}</h2>
+            <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label>{t('oldPassword')}</label>
+                <input type="password" value={passForm.old_password} onChange={e => setPassForm({...passForm, old_password: e.target.value})} className="date-picker-group" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label>{t('newPassword')}</label>
+                <input type="password" value={passForm.new_password} onChange={e => setPassForm({...passForm, new_password: e.target.value})} className="date-picker-group" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label>{t('confirmPassword')}</label>
+                <input type="password" value={passForm.confirm} onChange={e => setPassForm({...passForm, confirm: e.target.value})} className="date-picker-group" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+              </div>
+              <button className="btn-fetch" type="submit" style={{ marginTop: '1rem' }}>{t('updatePassword')}</button>
+            </form>
+          </div>
+
+          <div className="chart-card">
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>{t('apiKey')}</h2>
+            <form onSubmit={handleUpdateApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label>{t('apiKey')}</label>
+                <input type="text" value={settings.api_key} onChange={e => setSettings({...settings, api_key: e.target.value})} className="date-picker-group" style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white' }} required />
+              </div>
+              <button className="btn-fetch" type="submit" style={{ marginTop: '1rem' }}>{t('updateApiKey')}</button>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
+                ⚠️ 修改此金鑰後，所有硬體端設備皆須更新金鑰才能繼續上傳數據。
+              </p>
+            </form>
+          </div>
+        </section>
       ) : (
         <>
-          <section className="grid-cards">
-            {latestData && (
-              <>
-                <div className="metric-card" style={{ gridColumn: '1 / -1', borderLeft: `4px solid ${healthColor}` }}>
-                  <div className="metric-title"><Activity size={18} color={healthColor} /> {t('statusCard')}</div>
-                  <div style={{ fontSize: '1.2rem', color: '#f8fafc', marginTop: '0.5rem' }}>
-                    {t(healthStatus)}
+          {loading && !latestData ? (
+            <div className="loading">{t('loading')}</div>
+          ) : (
+            <>
+              <section className="grid-cards">
+                <div className="date-picker-group" style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '12px', display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="date-picker-group">
+                    <span>{t('from')}</span>
+                    <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  </div>
+                  <div className="date-picker-group">
+                    <span>{t('to')}</span>
+                    <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  </div>
+                  <button className="btn-fetch" onClick={handleFetchClick}>{t('applyRange')}</button>
+                  <button className="btn-fetch" onClick={handleExportCsv} style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Download size={16} /> {t('exportCsv')}
+                  </button>
+                </div>
+                {latestData && (
+                  <>
+                    <div className="metric-card" style={{ gridColumn: '1 / -1', borderLeft: `4px solid ${healthColor}` }}>
+                      <div className="metric-title"><Activity size={18} color={healthColor} /> {t('statusCard')}</div>
+                      <div style={{ fontSize: '1.2rem', color: '#f8fafc', marginTop: '0.5rem' }}>
+                        {t(healthStatus)}
+                      </div>
+                    </div>
+                    <div className={`metric-card temp ${latestData.temperature > 35 ? 'alert' : ''}`}>
+                      <div className="metric-title"><Thermometer size={18} color="var(--danger)" /> {t('temp')}</div>
+                      <div className="metric-value">{latestData.temperature}<span className="metric-unit">°C</span></div>
+                    </div>
+                    <div className="metric-card humid">
+                      <div className="metric-title"><Droplets size={18} color="var(--info)" /> {t('humidity')}</div>
+                      <div className="metric-value">{latestData.humidity}<span className="metric-unit">%</span></div>
+                    </div>
+                    <div className={`metric-card ph ${latestData.soil_ph < 5.5 || latestData.soil_ph > 7.5 ? 'alert' : ''}`}>
+                      <div className="metric-title"><FlaskConical size={18} color="var(--warning)" /> {t('ph')}</div>
+                      <div className="metric-value">{latestData.soil_ph}</div>
+                    </div>
+                    <div className={`metric-card ${latestData.soil_moisture < 40 ? 'alert' : ''}`}>
+                      <div className="metric-title"><Droplets size={18} color="var(--accent)" /> {t('moisture')}</div>
+                      <div className="metric-value">{latestData.soil_moisture}<span className="metric-unit">%</span></div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-title"><Zap size={18} color="#a855f7" /> {t('ec')}</div>
+                      <div className="metric-value">{latestData.electrical_conductivity}<span className="metric-unit">mS/cm</span></div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-title"><Sprout size={18} color="#10b981" /> {t('nutrients')}</div>
+                      <div className="metric-value">{latestData.nutrients}<span className="metric-unit">mg/kg</span></div>
+                    </div>
+                    <div className="metric-card" style={{ gridColumn: 'span 2' }}>
+                      <div className="metric-title"><Cloud size={18} color="#cbd5e1" /> {t('weather')}</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
+                        <div className="metric-value">{latestData.weather_temperature ?? '--'}<span className="metric-unit">°C</span></div>
+                        <div style={{ color: 'var(--text-secondary)' }}>{getWeatherDescription(latestData.weather_condition, lang)}</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </section>
+
+              <section className="charts-container">
+                <div className="chart-card">
+                  <div className="chart-title">{t('envChart')}</div>
+                  <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+                        <Line yAxisId="left" type="monotone" dataKey="temperature" name={t('temp')} stroke="#ef4444" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                        <Line yAxisId="right" type="monotone" dataKey="humidity" name={t('humidity')} stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-                <div className={`metric-card temp ${latestData.temperature > 35 ? 'alert' : ''}`}>
-                  <div className="metric-title"><Thermometer size={18} color="var(--danger)" /> {t('temp')}</div>
-                  <div className="metric-value">{latestData.temperature}<span className="metric-unit">°C</span></div>
-                </div>
-                <div className="metric-card humid">
-                  <div className="metric-title"><Droplets size={18} color="var(--info)" /> {t('humidity')}</div>
-                  <div className="metric-value">{latestData.humidity}<span className="metric-unit">%</span></div>
-                </div>
-                <div className={`metric-card ph ${latestData.soil_ph < 5.5 || latestData.soil_ph > 7.5 ? 'alert' : ''}`}>
-                  <div className="metric-title"><FlaskConical size={18} color="var(--warning)" /> {t('ph')}</div>
-                  <div className="metric-value">{latestData.soil_ph}</div>
-                </div>
-                <div className={`metric-card ${latestData.soil_moisture < 40 ? 'alert' : ''}`}>
-                  <div className="metric-title"><Droplets size={18} color="var(--accent)" /> {t('moisture')}</div>
-                  <div className="metric-value">{latestData.soil_moisture}<span className="metric-unit">%</span></div>
-                </div>
-                <div className="metric-card">
-                  <div className="metric-title"><Zap size={18} color="#a855f7" /> {t('ec')}</div>
-                  <div className="metric-value">{latestData.electrical_conductivity}<span className="metric-unit">mS/cm</span></div>
-                </div>
-                <div className="metric-card">
-                  <div className="metric-title"><Sprout size={18} color="#10b981" /> {t('nutrients')}</div>
-                  <div className="metric-value">{latestData.nutrients}<span className="metric-unit">mg/kg</span></div>
-                </div>
-                <div className="metric-card" style={{ gridColumn: 'span 2' }}>
-                  <div className="metric-title"><Cloud size={18} color="#cbd5e1" /> {t('weather')}</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
-                    <div className="metric-value">{latestData.weather_temperature ?? '--'}<span className="metric-unit">°C</span></div>
-                    <div style={{ color: 'var(--text-secondary)' }}>{getWeatherDescription(latestData.weather_condition, lang)}</div>
+
+                <div className="chart-card">
+                  <div className="chart-title">{t('soilChart')}</div>
+                  <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+                        <Line yAxisId="left" type="monotone" dataKey="soil_ph" name={t('ph')} stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                        <Line yAxisId="right" type="monotone" dataKey="soil_moisture" name={t('moisture')} stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-              </>
-            )}
-          </section>
 
-          <section className="charts-container">
-            <div className="chart-card">
-              <div className="chart-title">{t('envChart')}</div>
-              <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
-                    <Line yAxisId="left" type="monotone" dataKey="temperature" name={t('temp')} stroke="#ef4444" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="humidity" name={t('humidity')} stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+                <div className="chart-card">
+                  <div className="chart-title">{t('nutChart')}</div>
+                  <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+                        <Line yAxisId="left" type="monotone" dataKey="nutrients" name={t('nutrients')} stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                        <Line yAxisId="right" type="monotone" dataKey="electrical_conductivity" name={t('ec')} stroke="#a855f7" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
 
-            <div className="chart-card">
-              <div className="chart-title">{t('soilChart')}</div>
-              <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
-                    <Line yAxisId="left" type="monotone" dataKey="soil_ph" name={t('ph')} stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="soil_moisture" name={t('moisture')} stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="chart-card">
-              <div className="chart-title">{t('nutChart')}</div>
-              <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
-                    <Line yAxisId="left" type="monotone" dataKey="nutrients" name={t('nutrients')} stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                    <Line yAxisId="right" type="monotone" dataKey="electrical_conductivity" name={t('ec')} stroke="#a855f7" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="chart-card">
-              <div className="chart-title">{t('weatherChart')}</div>
-              <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer>
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <YAxis stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
-                    <Line type="monotone" dataKey="weather_temperature" name={t('temp')} stroke="#cbd5e1" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </section>
+                <div className="chart-card">
+                  <div className="chart-title">{t('weatherChart')}</div>
+                  <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <YAxis stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+                        <Line type="monotone" dataKey="weather_temperature" name={t('temp')} stroke="#cbd5e1" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
         </>
       )}
     </div>

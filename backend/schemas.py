@@ -10,6 +10,16 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+
+class ApiKeyUpdate(BaseModel):
+    api_key: str
+
+class SettingsResponse(BaseModel):
+    api_key: str
+
 class SensorDataCreate(BaseModel):
     temperature: Optional[float] = None
     humidity: Optional[float] = None
