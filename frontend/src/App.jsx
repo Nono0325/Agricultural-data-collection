@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import {
-  Thermometer, Droplets, FlaskConical, Sprout, Zap, Cloud, CloudRain
+  Thermometer, Droplets, FlaskConical, Sprout, Zap, Cloud, CloudRain, Download
 } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -60,6 +60,28 @@ function App() {
     fetchData();
   };
 
+  const handleExportCsv = async () => {
+    try {
+      const startIso = new Date(startDate).toISOString();
+      const endIso = new Date(endDate).toISOString();
+      const response = await axios.get(`${API_BASE_URL}/export`, {
+        params: { start: startIso, end: endIso },
+        responseType: 'blob', // Important for downloading files
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `agricultural_data_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      alert("Failed to export CSV. Please try again.");
+    }
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -98,6 +120,9 @@ function App() {
             />
           </div>
           <button className="btn-fetch" onClick={handleFetchClick}>Apply Range</button>
+          <button className="btn-fetch" onClick={handleExportCsv} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#3b82f6' }}>
+            <Download size={16} /> Export CSV
+          </button>
         </div>
       </header>
 

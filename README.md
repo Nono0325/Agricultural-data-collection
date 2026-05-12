@@ -46,10 +46,15 @@ npm run dev
 
 ## For Real Hardware
 
-You can upload your real sensor data via a simple `POST` request to `http://localhost:8000/api/sensor-data`:
+You can upload your real sensor data via a simple `POST` request to `http://localhost:8000/api/sensor-data`. 
+For security, you must include the API key in the headers.
 
 ```json
 POST /api/sensor-data
+Headers: 
+  "X-API-Key": "AGRI_SECRET_KEY_123"
+  "Content-Type": "application/json"
+
 {
   "temperature": 25.4,
   "humidity": 60.1,
