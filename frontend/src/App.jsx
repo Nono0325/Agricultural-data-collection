@@ -10,6 +10,19 @@ import {
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+const getWeatherDescription = (code) => {
+  if (code === null || code === undefined) return '--';
+  if (code === 0) return 'Clear sky';
+  if (code >= 1 && code <= 3) return 'Cloudy';
+  if (code === 45 || code === 48) return 'Fog';
+  if (code >= 51 && code <= 55) return 'Drizzle';
+  if (code >= 61 && code <= 65) return 'Rain';
+  if (code >= 71 && code <= 77) return 'Snow';
+  if (code >= 80 && code <= 82) return 'Rain Showers';
+  if (code >= 95) return 'Thunderstorm';
+  return `Code ${code}`;
+};
+
 function App() {
   const [data, setData] = useState([]);
   const [latestData, setLatestData] = useState(null);
@@ -161,7 +174,7 @@ function App() {
                   <div className="metric-title"><Cloud size={18} color="#cbd5e1" /> Local Weather (Current)</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
                     <div className="metric-value">{latestData.weather_temperature ?? '--'}<span className="metric-unit">°C</span></div>
-                    <div style={{ color: 'var(--text-secondary)' }}>Code: {latestData.weather_condition ?? '--'}</div>
+                    <div style={{ color: 'var(--text-secondary)' }}>{getWeatherDescription(latestData.weather_condition)}</div>
                   </div>
                 </div>
               </>
@@ -218,6 +231,22 @@ function App() {
                     <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
                     <Line yAxisId="left" type="monotone" dataKey="nutrients" name="Nutrients (mg/kg)" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
                     <Line yAxisId="right" type="monotone" dataKey="electrical_conductivity" name="EC (mS/cm)" stroke="#a855f7" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="chart-card">
+              <div className="chart-title">Local Weather Trend</div>
+              <div style={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer>
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                    <YAxis stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+                    <Line type="monotone" dataKey="weather_temperature" name="Weather Temp (°C)" stroke="#cbd5e1" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
