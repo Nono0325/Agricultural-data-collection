@@ -21,6 +21,29 @@ docker-compose up -d --build
 - The **Frontend Dashboard** will be available at: `http://localhost:3000`
 - The **Backend API** will be available at: `http://localhost:8000/docs` (Swagger UI)
 
+## Native Installation (Without Docker)
+
+If you don't want to use Docker, you can run the backend and frontend natively on your machine.
+You will need **Python (3.9+)** and **Node.js (18+)** installed.
+
+### 1. Start the Backend API (Python)
+Open a terminal in the `backend` folder and run:
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+*The API will start at http://localhost:8000*
+
+### 2. Start the Frontend Dashboard (React)
+Open **another new terminal** in the `frontend` folder and run:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*The Dashboard will start at http://localhost:5173 (or similar, check terminal output)*
+
 ## For Real Hardware
 
 You can upload your real sensor data via a simple `POST` request to `http://localhost:8000/api/sensor-data`:
