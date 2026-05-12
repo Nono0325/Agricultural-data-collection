@@ -37,7 +37,14 @@ const translations = {
     weatherCodes: {
       clear: 'Clear sky', cloudy: 'Cloudy', fog: 'Fog', drizzle: 'Drizzle',
       rain: 'Rain', snow: 'Snow', showers: 'Rain Showers', storm: 'Thunderstorm', unknown: 'Unknown'
-    }
+    },
+    login: "System Login",
+    username: "Username",
+    password: "Password",
+    loginBtn: "Sign In",
+    logoutBtn: "Logout",
+    loginError: "Invalid credentials",
+    unauthorized: "Session expired. Please re-login."
   },
   zh: {
     title: "智慧農業數據儀表板",
@@ -65,7 +72,14 @@ const translations = {
     weatherCodes: {
       clear: '晴空', cloudy: '多雲', fog: '起霧', drizzle: '毛毛雨',
       rain: '下雨', snow: '下雪', showers: '陣雨', storm: '雷陣雨', unknown: '未知'
-    }
+    },
+    login: "管理系統登入",
+    username: "帳號",
+    password: "密碼",
+    loginBtn: "登入系統",
+    logoutBtn: "登出系統",
+    loginError: "帳號或密碼錯誤",
+    unauthorized: "連線已過期，請重新登入"
   }
 };
 
@@ -85,9 +99,16 @@ const getWeatherDescription = (code, lang) => {
 
 function App() {
   const [lang, setLang] = useState('zh');
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const [data, setData] = useState([]);
   const [latestData, setLatestData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+
+  const axiosConfig = {
+    headers: { Authorization: `Bearer ${token}` }
+  };
   
   // Default time range: last 7 days to now
   const [startDate, setStartDate] = useState(
@@ -98,13 +119,14 @@ function App() {
   );
 
   const fetchData = async () => {
+    if (!token) return;
     setLoading(true);
     try {
-      // 1. Fetch historical data with range
       const startIso = new Date(startDate).toISOString();
       const endIso = new Date(endDate).toISOString();
       const historyRes = await axios.get(`${API_BASE_URL}/sensor-data`, {
-        params: { start: startIso, end: endIso, limit: 1000 }
+        params: { start: startIso, end: endIso, limit: 1000 },
+        ...axiosConfig
       });
       
       const formattedHistory = historyRes.data.map(item => ({
@@ -113,22 +135,45 @@ function App() {
       }));
       setData(formattedHistory);
 
-      // 2. Fetch latest data for current metrics
-      const latestRes = await axios.get(`${API_BASE_URL}/latest`);
+      const latestRes = await axios.get(`${API_BASE_URL}/latest`, axiosConfig);
       setLatestData(latestRes.data);
     } catch (error) {
       console.error("Error fetching data:", error);
+      if (error.response?.status === 401) {
+        handleLogout();
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    try {
+      const res = await axios.post(`${API_BASE_URL}/login`, loginForm);
+      const newToken = res.data.access_token;
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+    } catch (error) {
+      setLoginError(translations[lang].loginError);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setData([]);
+    setLatestData(null);
+  };
+
   useEffect(() => {
-    fetchData();
-    // Refresh every minute
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    if (token) {
+      fetchData();
+      const interval = setInterval(fetchData, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [token]);
 
   const handleFetchClick = () => {
     fetchData();
@@ -140,7 +185,8 @@ function App() {
       const endIso = new Date(endDate).toISOString();
       const response = await axios.get(`${API_BASE_URL}/export`, {
         params: { start: startIso, end: endIso },
-        responseType: 'blob', // Important for downloading files
+        responseType: 'blob',
+        ...axiosConfig
       });
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -186,11 +232,55 @@ function App() {
     }
   }
 
+  if (!token) {
+    return (
+      <div className="dashboard-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div className="metric-card" style={{ maxWidth: '400px', width: '100%', padding: '2.5rem' }}>
+          <h2 style={{ marginBottom: '2rem', textAlign: 'center', color: 'var(--accent)' }}>{t('login')}</h2>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{t('username')}</label>
+              <input 
+                type="text" 
+                className="date-picker-group" 
+                style={{ width: '100%', border: '1px solid var(--border)' }}
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{t('password')}</label>
+              <input 
+                type="password" 
+                className="date-picker-group" 
+                style={{ width: '100%', border: '1px solid var(--border)' }}
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                required
+              />
+            </div>
+            {loginError && <div style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{loginError}</div>}
+            <button className="btn-fetch" type="submit" style={{ marginTop: '1rem', height: '45px' }}>{t('loginBtn')}</button>
+          </form>
+          <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+            <button className="btn-lang" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              🌐 {lang === 'en' ? '切換至中文' : 'Switch to EN'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       <header>
         <h1>{t('title')}</h1>
         <div className="controls">
+          <button className="btn-lang" onClick={handleLogout} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }}>
+             {t('logoutBtn')}
+          </button>
           <button className="btn-lang" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
             <Globe size={16} /> {lang === 'en' ? '中文' : 'EN'}
           </button>

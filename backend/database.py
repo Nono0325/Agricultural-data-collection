@@ -2,8 +2,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 import os
+from dotenv import load_dotenv
 
-DB_DIR = os.getenv("DB_DIR", "/data")
+load_dotenv()
+
+DB_DIR = os.getenv("DB_DIR", "./data")
 if not os.path.exists(DB_DIR):
     try:
         os.makedirs(DB_DIR)

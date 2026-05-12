@@ -2,6 +2,14 @@ from pydantic import BaseModel
 from typing import Optional
 import datetime
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
 class SensorDataCreate(BaseModel):
     temperature: Optional[float] = None
     humidity: Optional[float] = None
