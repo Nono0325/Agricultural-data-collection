@@ -38,6 +38,8 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
@@ -49,10 +51,12 @@ header h1 {
   background: linear-gradient(to right, #10b981, #3b82f6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  margin: 0;
 }
 
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
 }

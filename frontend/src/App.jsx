@@ -189,13 +189,11 @@ function App() {
   return (
     <div className="dashboard-container">
       <header>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1>{t('title')}</h1>
+        <h1>{t('title')}</h1>
+        <div className="controls">
           <button className="btn-lang" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
             <Globe size={16} /> {lang === 'en' ? '中文' : 'EN'}
           </button>
-        </div>
-        <div className="controls">
           <div className="date-picker-group">
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('from')}</span>
             <input 
@@ -226,7 +224,7 @@ function App() {
           <section className="grid-cards">
             {latestData && (
               <>
-                <div className="metric-card" style={{ gridColumn: 'span 4', borderLeft: `4px solid ${healthColor}` }}>
+                <div className="metric-card" style={{ gridColumn: '1 / -1', borderLeft: `4px solid ${healthColor}` }}>
                   <div className="metric-title"><Activity size={18} color={healthColor} /> {t('statusCard')}</div>
                   <div style={{ fontSize: '1.2rem', color: '#f8fafc', marginTop: '0.5rem' }}>
                     {t(healthStatus)}
